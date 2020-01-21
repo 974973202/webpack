@@ -1,8 +1,9 @@
 'use strict';
 
 const path = require('path');
+const webpack = require('webpack');
 const glob = require('glob');
-
+const Happypack = require('happypack')
 
 
 // 提取css 文件的插件
@@ -13,7 +14,12 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 const HtmlWebpackExternalsPlugin = require('html-webpack-externals-plugin');
 const FriendlyErrorsWebpackPlugin = require('friendly-errors-webpack-plugin');
+const SpeedMeasureWebpackPlugin = require('speed-measure-webpack-plugin')
+const HardSourceWebpackPlugin = require('hard-source-webpack-plugin') // 模块缓存
 
+const TerserWebpackPlugin = require('terser-webpack-plugin'); // 并行压缩
+
+const smp = new SpeedMeasureWebpackPlugin()
 
 const setMPA = () => {
   const entry = {};
@@ -149,9 +155,18 @@ module.exports = {
       // },
       {
         test: /\.js$/,
+        include: path.resolve('src'),
         use: [
+          {
+            loader: 'thread-loader',
+            options: {
+              workers: 3
+            }
+          },
           'babel-loader',
           // 'eslint-loader'
+
+          // 'happypack/loader'
         ]
       },
       {
@@ -204,20 +219,20 @@ module.exports = {
       cssProcessor: require('cssnano')
     }),
 
-    new HtmlWebpackExternalsPlugin({
-      externals: [
-        {
-          module: 'react',
-          entry: 'https://11.url.cn/now/lib/16.2.0/react.min.js',
-          global: 'React',
-        },
-        {
-          module: 'react-dom',
-          entry: 'https://11.url.cn/now/lib/16.2.0/react-dom.min.js',
-          global: 'ReactDOM',
-        },
-      ],
-    }),
+    // new HtmlWebpackExternalsPlugin({
+    //   externals: [
+    //     {
+    //       module: 'react',
+    //       entry: 'https://11.url.cn/now/lib/16.2.0/react.min.js',
+    //       global: 'React',
+    //     },
+    //     {
+    //       module: 'react-dom',
+    //       entry: 'https://11.url.cn/now/lib/16.2.0/react-dom.min.js',
+    //       global: 'ReactDOM',
+    //     },
+    //   ],
+    // }),
 
     // new HtmlWebpackPlugin({
     //   template: path.join(__dirname, 'src/search.html'),
@@ -247,8 +262,15 @@ module.exports = {
     //     removeComments: false,
     //   }
     // }),
+    // new webpack.DllReferencePlugin({
+    //   manifest: require('./build/library/library.json')
+    // }),
     new FriendlyErrorsWebpackPlugin(),
-    new CleanWebpackPlugin()
+    // new HardSourceWebpackPlugin(),
+    new CleanWebpackPlugin(),
+    // new Happypack({
+    //   loaders: ['babel-loader?cacheDirectory=true']
+    // })
   ].concat(htmlWebpackPlugin),
   // optimization: {
   //   splitChunks: {
@@ -262,7 +284,7 @@ module.exports = {
   //   }
   // },
 
-  // optimization: {
+  optimization: {
   //   splitChunks: {
   //     minSize: 0, // 文件多大进行打包
   //     cacheGroups: {
@@ -273,9 +295,24 @@ module.exports = {
   //       }
   //     }
   //   }
-  // },
+    minimizer: [
+      new TerserWebpackPlugin({
+        parallel: true,
+        cache: true
+      })
+    ]
+  },
 
-  devtool: 'eval'
+  resolve: {
+    alias: {
+      "react": path.resolve(__dirname, './node_modules/react/umd/react.production.min.js'),
+      "react-dom": path.resolve(__dirname, './node_modules/react-dom/umd/react-dom.production.min.js'),
+    },
+    extensions: ['.js'],
+    mainFields: ['main']
+  },
+
+  stats: 'errors-only'
 
 
 }
